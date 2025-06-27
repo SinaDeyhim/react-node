@@ -93,7 +93,7 @@ const UserPage = () => {
 
   const updateProgress = async (taskId, progress) => {
     try {
-      const res = await fetch(`${TASK_API_BASE}/${taskId}/progress`, {
+      const res = await fetch(`${TASK_API_BASE}/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ progress: parseInt(progress) }),
