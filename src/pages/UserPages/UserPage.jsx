@@ -2,20 +2,15 @@ import React, { useState, useEffect } from "react";
 import UserSidebar from "./UserSidebar";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
 import { useAuth } from "../../contexts/AuthContext";
 import { useTasks } from "../../contexts/TasksContext";
+import Dropdown from "../../components/common/Dropdown";
+
+const FILTER_OPTIONS = ["All", "Completed", "Incomplete"];
 
 const UserPage = () => {
   const { user } = useAuth();
-  const {
-    tasks,
-    addTask,
-    deleteTask,
-    updateTask,
-    fetchTasks,
-    loading,
-  } = useTasks();
+  const { tasks, addTask, deleteTask, updateTask, fetchTasks, loading } = useTasks();
 
   const [newTask, setNewTask] = useState({
     title: "",
@@ -25,17 +20,28 @@ const UserPage = () => {
     progress: 0,
   });
 
+  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem("taskSearch") || "");
+  const [filter, setFilter] = useState(() => localStorage.getItem("taskFilter") || "All");
+
   useEffect(() => {
     if (user?.id) {
-      fetchTasks(); // Already uses user.id inside context
+      fetchTasks();
     } else {
       toast.error("User not found. Please log in again.");
     }
   }, [user?.id]);
 
+  useEffect(() => {
+    localStorage.setItem("taskSearch", searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    console.log(">>>> filter", filter)
+    localStorage.setItem("taskFilter", filter);
+  }, [filter]);
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
-
     if (!newTask.title.trim() || !newTask.description.trim()) {
       return toast.error("Title and description are required.");
     }
@@ -78,10 +84,18 @@ const UserPage = () => {
     return "text-green-600 font-bold";
   };
 
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const isCompleted = task.status === "complete" || task.progress >= 100;
+
+    if (filter === "Completed") return isCompleted && matchesSearch;
+    if (filter === "Incomplete") return !isCompleted && matchesSearch;
+    return matchesSearch;
+  });
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <UserSidebar />
-
       <div className="flex-1 p-6">
         <h1 className="text-4xl font-bold mb-6 text-center">
           🎯{" "}
@@ -91,6 +105,24 @@ const UserPage = () => {
         </h1>
 
         <ToastContainer position="top-right" autoClose={3000} />
+
+        {/* Search & Filter */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 max-w-4xl mx-auto">
+          <input
+            type="text"
+            placeholder="🔍 Search by title"
+            className="w-full md:w-1/2 p-3 border rounded-lg"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+        <Dropdown
+          value={filter}
+          options={FILTER_OPTIONS}
+          onChange={setFilter}
+          className="w-full md:w-1/3"
+         />
+        </div>
 
         {/* Create Task */}
         <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-lg mb-8">
@@ -142,10 +174,10 @@ const UserPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             <p>Loading...</p>
-          ) : tasks.length === 0 ? (
-            <p className="text-gray-600">No tasks created yet. Start by adding a task!</p>
+          ) : filteredTasks.length === 0 ? (
+            <p className="text-gray-600">No matching tasks found.</p>
           ) : (
-            tasks.map((task) => (
+            filteredTasks.map((task) => (
               <div key={task._id} className="bg-white p-4 rounded shadow border-l-4 border-blue-400">
                 <h3 className="text-lg font-semibold">{task.title}</h3>
                 <p className="text-gray-600">{task.description}</p>
@@ -158,7 +190,6 @@ const UserPage = () => {
                 <p className="text-sm text-gray-700 mt-1">
                   <strong>Deadline:</strong> {task.deadline}
                 </p>
-
                 <div className="mt-4">
                   <label className="text-sm font-medium text-gray-700">Progress:</label>
                   <input
@@ -171,7 +202,6 @@ const UserPage = () => {
                   />
                   <span className="text-sm text-gray-700">{task.progress}% Completed</span>
                 </div>
-
                 <button
                   onClick={() => handleDeleteTask(task._id)}
                   className="mt-4 w-full bg-red-600 text-white p-2 rounded-lg hover:bg-red-700"

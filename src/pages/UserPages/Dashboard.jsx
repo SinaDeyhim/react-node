@@ -33,14 +33,24 @@ const UserDashboard = () => {
   // Categorize tasks
   useEffect(() => {
     if (loading || !allTasks.length) return;
+    const completedTasks = allTasks.filter((t) => t.status === "complete");
+    const inProgressTasks = allTasks.filter(
+      (t) =>
+        t.status !== "complete" &&
+        t.progress > 40 &&
+        t.progress <= 80
+    );
+    const toDoTasks = allTasks.filter(
+      (t) =>
+        t.status !== "complete" &&
+        t.progress <= 40
+    );
 
-    const categorized = {
-      "To Do": allTasks.filter((t) => t.progress <= 40),
-      "In Progress": allTasks.filter((t) => t.progress > 40 && t.progress <= 80),
-      Completed: allTasks.filter((t) => t.progress > 80),
-    };
-
-    setGrouped(categorized);
+    setGrouped({
+      "To Do": toDoTasks,
+      "In Progress": inProgressTasks,
+      Completed: completedTasks,
+    });
     checkDeadlines(allTasks);
   }, [allTasks, loading]);
 

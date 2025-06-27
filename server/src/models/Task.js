@@ -6,6 +6,7 @@ const TaskSchema = new mongoose.Schema({
   priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
   deadline: String,
   progress: { type: Number, default: 0 },
+  status:  { type: String, enum: ['complete', 'incomplete', ], default: 'incomplete' },
   assignedTo: { type: String, required: true }, // Can be user email or name
 }, { timestamps: true });
 
