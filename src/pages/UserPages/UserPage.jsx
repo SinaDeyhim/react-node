@@ -34,7 +34,6 @@ const UserPage = () => {
   }, [searchTerm]);
 
   useEffect(() => {
-    console.log(">>>> filter", filter)
     localStorage.setItem("taskFilter", filter);
   }, [filter]);
 
