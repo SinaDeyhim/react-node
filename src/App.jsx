@@ -45,6 +45,7 @@ import TaskFilter from "./components/tasks/TaskFilter";
 // Context Providers
 import AuthProvider from "./contexts/AuthContext";
 import NotificationProvider from "./contexts/NotificationContext";
+import { TaskProvider } from "./contexts/TasksContext";
 
 /**
  * Protected Route Component
@@ -143,9 +144,11 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
+        <TaskProvider>
         <Router>
           <AppLayout />
         </Router>
+        </TaskProvider>
       </NotificationProvider>
     </AuthProvider>
   );

@@ -42,8 +42,8 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem("token");
     const email = localStorage.getItem("email");
-    
-    return token && email ? { email } : null;
+    const userId = localStorage.getItem("userId");
+    return token && email ? { email, id: userId } : null;
   });
   
   const [loading, setLoading] = useState(true);
@@ -61,9 +61,10 @@ const AuthProvider = ({ children }) => {
           // In a real app, we would validate the token with the server
           // For this demo, we'll just check if it exists
           const email = localStorage.getItem("email");
+          const userId = localStorage.getItem("userId");
           
           if (email) {
-            setUser({ email });
+            setUser({ email, id: userId });
           } else {
             // If email is missing but token exists, something is wrong
             // Clear authentication data

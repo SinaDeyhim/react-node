@@ -1,48 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   FaCheck,
   FaEdit,
   FaSpinner,
   FaExclamationTriangle,
   FaCalendarAlt,
-  FaFlag,
 } from "react-icons/fa";
-
-const API_BASE = "http://localhost:5000/api/tasks";
-const USER_ID = localStorage.getItem("userId");
-
-const fallbackTasks = [
-  {
-    _id: "1",
-    title: "Complete project documentation",
-    description: "Write comprehensive documentation for the TaskFlow project",
-    status: "incomplete",
-    priority: "high",
-    dueDate: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: "2",
-    title: "Fix navigation bug",
-    description: "Address the issue with sidebar navigation on mobile devices",
-    status: "complete",
-    priority: "medium",
-    dueDate: new Date().toISOString(),
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    _id: "3",
-    title: "Implement user feedback",
-    description: "Add the user feedback form to the dashboard",
-    status: "incomplete",
-    priority: "low",
-    dueDate: new Date(Date.now() + 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
+import { useTasks } from "../../contexts/TasksContext"; 
 
 const TaskList = () => {
-  const [tasks, setTasks] = useState([]);
+  const { tasks, loading, error, updateTask } = useTasks();
   const [editingTask, setEditingTask] = useState(null);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -50,46 +17,6 @@ const TaskList = () => {
     priority: "",
     dueDate: "",
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/${USER_ID}`);
-        if (!res.ok) throw new Error("API response not ok");
-        const data = await res.json();
-        setTasks(data);
-        setError(null);
-      } catch (err) {
-        console.error("Falling back to mock data due to error:", err.message);
-        setTasks(fallbackTasks);
-        setError("Server unavailable. Using fallback tasks.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, []);
-
-  const handleStatusChange = async (taskId) => {
-    const task = tasks.find((t) => t._id === taskId);
-    const updatedStatus = task.status === "complete" ? "incomplete" : "complete";
-
-    try {
-      const res = await fetch(`${API_BASE}/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: updatedStatus }),
-      });
-      if (!res.ok) throw new Error("Failed to update task");
-      const updatedTask = await res.json();
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? updatedTask : t)));
-    } catch (err) {
-      console.error("Failed to update status:", err.message);
-    }
-  };
 
   const startEditing = (task) => {
     setEditingTask(task._id);
@@ -97,7 +24,7 @@ const TaskList = () => {
       title: task.title || "",
       description: task.description || "",
       priority: task.priority || "",
-      dueDate: task.dueDate?.substring(0, 10) || "", // trim for input[type=date]
+      dueDate: task.dueDate?.substring(0, 10) || "",
     });
   };
 
@@ -107,20 +34,14 @@ const TaskList = () => {
       return;
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
+    await updateTask(taskId, editForm);
+    setEditingTask(null);
+  };
 
-      if (!res.ok) throw new Error("Failed to update task");
-      const updated = await res.json();
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? updated : t)));
-      setEditingTask(null);
-    } catch (err) {
-      console.error("Save failed:", err.message);
-    }
+  const handleStatusChange = async (task) => {
+    await updateTask(task._id, {
+      status: task.status === "complete" ? "incomplete" : "complete",
+    });
   };
 
   const handleInputChange = (e) => {
@@ -224,7 +145,7 @@ const TaskList = () => {
                   </h4>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleStatusChange(task._id)}
+                      onClick={() => handleStatusChange(task)}
                       className="p-1 rounded bg-gray-100 text-gray-600"
                     >
                       <FaCheck />
@@ -237,16 +158,26 @@ const TaskList = () => {
                     </button>
                   </div>
                 </div>
-                <p className={`text-sm mt-1 ${task.status === "complete" ? "text-gray-400" : "text-gray-600"}`}>
+                <p
+                  className={`text-sm mt-1 ${
+                    task.status === "complete" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
                   {task.description}
                 </p>
                 <div className="flex justify-between mt-2 items-center">
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityClasses(task.priority)}`}>
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${getPriorityClasses(
+                      task.priority
+                    )}`}
+                  >
                     {task.priority}
                   </span>
                   <span className="text-xs text-gray-500">
-                    <FaCalendarAlt className="inline mr-1" />{" "}
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date"}
+                    <FaCalendarAlt className="inline mr-1" />
+                    {task.dueDate
+                      ? new Date(task.dueDate).toLocaleDateString()
+                      : "No due date"}
                   </span>
                 </div>
               </div>

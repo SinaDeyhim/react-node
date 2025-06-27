@@ -3,11 +3,20 @@ import UserSidebar from "./UserSidebar";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-export const TASK_API_BASE = "http://localhost:5000/api/tasks";
+import { useAuth } from "../../contexts/AuthContext";
+import { useTasks } from "../../contexts/TasksContext";
 
 const UserPage = () => {
-  const [tasks, setTasks] = useState([]);
-  const [loggedInUserId, setLoggedInUserId] = useState("");
+  const { user } = useAuth();
+  const {
+    tasks,
+    addTask,
+    deleteTask,
+    updateTask,
+    fetchTasks,
+    loading,
+  } = useTasks();
+
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -17,27 +26,12 @@ const UserPage = () => {
   });
 
   useEffect(() => {
-    const storedUserId = localStorage.getItem("userId");
-
-    if (storedUserId) {
-      setLoggedInUserId(storedUserId);
-      fetchTasks(storedUserId);
+    if (user?.id) {
+      fetchTasks(); // Already uses user.id inside context
     } else {
       toast.error("User not found. Please log in again.");
     }
-  }, []);
-
-  const fetchTasks = async (userId) => {
-    try {
-      const res = await fetch(`${TASK_API_BASE}/${userId}`);
-      if (!res.ok) throw new Error("Failed to fetch tasks");
-      const data = await res.json();
-      setTasks(data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not load tasks.");
-    }
-  };
+  }, [user?.id]);
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
@@ -47,20 +41,7 @@ const UserPage = () => {
     }
 
     try {
-      const response = await fetch(TASK_API_BASE, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newTask,
-          assignedTo: loggedInUserId,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to create task");
-
-      const createdTask = await response.json();
-      setTasks((prev) => [...prev, createdTask]);
-
+      await addTask({ ...newTask, assignedTo: user.id });
       toast.success("Task added successfully ✅");
       setNewTask({
         title: "",
@@ -69,44 +50,24 @@ const UserPage = () => {
         deadline: "",
         progress: 0,
       });
-    } catch (error) {
-      console.error("Create task error:", error);
+    } catch (err) {
       toast.error("Failed to add task.");
     }
   };
 
   const handleDeleteTask = async (taskId) => {
     try {
-      const res = await fetch(`${TASK_API_BASE}/${taskId}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Delete failed");
-
-      setTasks((prev) => prev.filter((task) => task._id !== taskId));
+      await deleteTask(taskId);
       toast.success("Task removed 🗑️");
     } catch (err) {
-      console.error("Delete error:", err);
       toast.error("Failed to delete task.");
     }
   };
 
   const updateProgress = async (taskId, progress) => {
     try {
-      const res = await fetch(`${TASK_API_BASE}/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ progress: parseInt(progress) }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update progress");
-
-      const updated = await res.json();
-      setTasks((prev) =>
-        prev.map((task) => (task._id === taskId ? updated : task))
-      );
+      await updateTask(taskId, { progress: parseInt(progress) });
     } catch (err) {
-      console.error("Progress update error:", err);
       toast.error("Failed to update progress.");
     }
   };
@@ -179,7 +140,9 @@ const UserPage = () => {
 
         {/* Task List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tasks.length === 0 ? (
+          {loading ? (
+            <p>Loading...</p>
+          ) : tasks.length === 0 ? (
             <p className="text-gray-600">No tasks created yet. Start by adding a task!</p>
           ) : (
             tasks.map((task) => (

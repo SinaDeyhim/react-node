@@ -1,72 +1,41 @@
-// TaskList (refactored to use MongoDB via API instead of localStorage)
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FaCheck, FaEdit, FaSpinner, FaExclamationTriangle, FaCalendarAlt, FaFlag } from 'react-icons/fa';
-
-const API_URL = 'http://localhost:5000/api/tasks';
+import React, { useState } from 'react';
+import { useTasks } from '../context/TaskContext'; 
+import {
+  FaCheck,
+  FaEdit,
+  FaSpinner,
+  FaExclamationTriangle,
+  FaCalendarAlt,
+} from 'react-icons/fa';
 
 const TaskList = () => {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    tasks,
+    loading,
+    error,
+    updateTask,
+  } = useTasks();
+
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
-
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const storedUserId = localStorage.getItem("userId");
-
-
-        if (!storedUserId) {
-          setError("User not found. Please log in.");
-          return;
-        }
-
-        const res = await axios.get(`${API_URL}/${storedUserId}`);
-        setTasks(res.data);
-        setError(null);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load tasks');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, []);
-
-  const handleStatusChange = async (task) => {
-    const updated = {
-      ...task,
-      status: task.status === 'complete' ? 'incomplete' : 'complete',
-    };
-    try {
-      await axios.put(`${API_URL}/${task._id}`, updated);
-      setTasks((prev) => prev.map(t => (t._id === task._id ? updated : t)));
-    } catch {
-      setError('Failed to update task status');
-    }
-  };
 
   const startEditing = (task) => {
     setEditingTaskId(task._id);
     setEditForm({ title: task.title, description: task.description });
   };
 
+  const cancelEditing = () => setEditingTaskId(null);
+
   const saveTask = async (taskId) => {
     if (!editForm.title.trim()) return alert('Title required');
-    try {
-      const updated = await axios.put(`${API_URL}/${taskId}`, editForm);
-      setTasks((prev) => prev.map(t => (t._id === taskId ? updated.data : t)));
-      setEditingTaskId(null);
-    } catch {
-      setError('Failed to save task');
-    }
+    await updateTask(taskId, editForm);
+    setEditingTaskId(null);
   };
 
-  const cancelEditing = () => setEditingTaskId(null);
+  const toggleStatus = async (task) => {
+    const newStatus = task.status === 'complete' ? 'incomplete' : 'complete';
+    await updateTask(task._id, { status: newStatus });
+  };
 
   const formatDate = (date) => new Date(date).toLocaleDateString();
 
@@ -79,10 +48,17 @@ const TaskList = () => {
     }
   };
 
-  if (loading) return <div className="p-4 flex items-center"><FaSpinner className="animate-spin" /> Loading...</div>;
-  if (error) return <div className="p-4 text-red-600 flex items-center"><FaExclamationTriangle className="mr-2" />{error}</div>;
+  if (loading) {
+    return <div className="p-4 flex items-center"><FaSpinner className="animate-spin mr-2" />Loading tasks...</div>;
+  }
 
-  if (!tasks.length) return <div className="p-4 text-center">No tasks found</div>;
+  if (error) {
+    return <div className="p-4 text-red-600 flex items-center"><FaExclamationTriangle className="mr-2" />{error}</div>;
+  }
+
+  if (!tasks.length) {
+    return <div className="p-4 text-center">No tasks found</div>;
+  }
 
   return (
     <div className="bg-white p-4 rounded shadow max-h-96 overflow-y-auto">
@@ -115,7 +91,7 @@ const TaskList = () => {
                 <div className="flex justify-between items-start">
                   <h4 className={`font-medium ${task.status === 'complete' ? 'line-through text-gray-500' : ''}`}>{task.title}</h4>
                   <div className="flex space-x-2">
-                    <button onClick={() => handleStatusChange(task)} className="p-1 rounded bg-gray-100">
+                    <button onClick={() => toggleStatus(task)} className="p-1 rounded bg-gray-100">
                       <FaCheck />
                     </button>
                     <button onClick={() => startEditing(task)} className="p-1 rounded bg-blue-100 text-blue-600">
@@ -129,7 +105,11 @@ const TaskList = () => {
                     <span className={`px-2 py-1 rounded ${getPriorityClasses(task.priority)}`}>{task.priority}</span>
                     <span className={`px-2 py-1 rounded ${task.status === 'complete' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{task.status}</span>
                   </div>
-                  {task.dueDate && <span className="text-gray-500 flex items-center"><FaCalendarAlt className="mr-1" />{formatDate(task.dueDate)}</span>}
+                  {task.dueDate && (
+                    <span className="text-gray-500 flex items-center">
+                      <FaCalendarAlt className="mr-1" /> {formatDate(task.dueDate)}
+                    </span>
+                  )}
                 </div>
               </div>
             )}

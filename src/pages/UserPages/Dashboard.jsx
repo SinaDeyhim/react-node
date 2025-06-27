@@ -5,17 +5,23 @@ import { Bar } from "react-chartjs-2";
 import "chart.js/auto";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 import UserSidebar from "./UserSidebar";
 import Column from "./Column";
 import SortableItem from "./SortableItem";
-import { TASK_API_BASE } from "./UserPage";
 import notificationSound from "./notification.mp3";
 
-const NOTES_API_BASE = "http://localhost:5000/api/notes"; // adjust to your backend route
+import { useTasks } from "../../contexts/TasksContext";
+import { useAuth } from "../../contexts/AuthContext";
+
+const NOTES_API_BASE = "http://localhost:5000/api/notes";
 let debounceTimer = null;
 
 const UserDashboard = () => {
-  const [tasks, setTasks] = useState({
+  const { tasks: allTasks, loading } = useTasks();
+  const { user } = useAuth();
+
+  const [grouped, setGrouped] = useState({
     "To Do": [],
     "In Progress": [],
     Completed: [],
@@ -24,73 +30,55 @@ const UserDashboard = () => {
   const [notes, setNotes] = useState("");
   const audioRef = useRef(new Audio(notificationSound));
 
+  // Categorize tasks
   useEffect(() => {
-    window.scrollTo(0, 0);
-    const userId = localStorage.getItem("userId");
-    if (userId) {
-      fetchTasks(userId);
-      fetchUserNotes(userId);
-    }
-  }, []);
+    if (loading || !allTasks.length) return;
 
-  const fetchTasks = async (userId) => {
-    try {
-      const res = await fetch(`${TASK_API_BASE}/${userId}`);
-      const allTasks = await res.json();
+    const categorized = {
+      "To Do": allTasks.filter((t) => t.progress <= 40),
+      "In Progress": allTasks.filter((t) => t.progress > 40 && t.progress <= 80),
+      Completed: allTasks.filter((t) => t.progress > 80),
+    };
 
-      const categorized = {
-        "To Do": allTasks.filter((t) => t.progress <= 40),
-        "In Progress": allTasks.filter((t) => t.progress > 40 && t.progress <= 80),
-        Completed: allTasks.filter((t) => t.progress > 80),
-      };
+    setGrouped(categorized);
+    checkDeadlines(allTasks);
+  }, [allTasks, loading]);
 
-      setTasks(categorized);
-      checkDeadlines(allTasks);
-    } catch (err) {
-      console.error("Failed to fetch tasks", err);
-      toast.error("Could not load tasks.");
-    }
-  };
-
-  const fetchUserNotes = async (userId) => {
-    try {
-      const res = await fetch(`${NOTES_API_BASE}/${userId}`);
-      const data = await res.json();
-      setNotes(data.notes || "");
-    } catch (err) {
-      console.error("Failed to fetch notes", err);
-      toast.error("Could not load notes.");
-    }
-  };
-
+  // Fetch notes for logged in user
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) return;
+    if (!user?.id) return;
+    fetch(`${NOTES_API_BASE}/${user.id}`)
+      .then((res) => res.json())
+      .then((data) => setNotes(data.notes || ""))
+      .catch((err) => {
+        console.error("Failed to fetch notes", err);
+        toast.error("Could not load notes.");
+      });
+  }, [user?.id]);
 
+  // Auto-save notes (debounced)
+  useEffect(() => {
+    if (!user?.id) return;
     if (debounceTimer) clearTimeout(debounceTimer);
 
-    debounceTimer = setTimeout(async () => {
-      try {
-        await fetch(`${NOTES_API_BASE}/${userId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes }),
-        });
-      } catch (err) {
-        console.error("Failed to save notes", err);
-      }
+    debounceTimer = setTimeout(() => {
+      fetch(`${NOTES_API_BASE}/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      }).catch((err) => console.error("Failed to save notes", err));
     }, 500);
 
     return () => clearTimeout(debounceTimer);
-  }, [notes]);
+  }, [notes, user?.id]);
 
-  const checkDeadlines = (allTasks) => {
+  const checkDeadlines = (tasks) => {
     const today = new Date().toISOString().split("T")[0];
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
-    allTasks.forEach((task) => {
+    tasks.forEach((task) => {
       if (task.deadline === today) {
         showNotification(`🚨 Task Due Today: "${task.title}"`, "bg-red-500 text-white");
       } else if (task.deadline === tomorrowStr) {
@@ -113,16 +101,16 @@ const UserDashboard = () => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const sourceColumn = Object.keys(tasks).find((col) =>
-      tasks[col].some((task) => task.id === active.id)
+    const sourceColumn = Object.keys(grouped).find((col) =>
+      grouped[col].some((task) => task.id === active.id)
     );
-    const targetColumn = Object.keys(tasks).find((col) =>
-      tasks[col].some((task) => task.id === over.id)
+    const targetColumn = Object.keys(grouped).find((col) =>
+      grouped[col].some((task) => task.id === over.id)
     ) || over.id;
 
     if (!sourceColumn || !targetColumn || sourceColumn === targetColumn) return;
 
-    setTasks((prev) => {
+    setGrouped((prev) => {
       const updated = { ...prev };
       const moved = updated[sourceColumn].find((t) => t.id === active.id);
       updated[sourceColumn] = updated[sourceColumn].filter((t) => t.id !== active.id);
@@ -137,9 +125,9 @@ const UserDashboard = () => {
       {
         label: "Number of Tasks",
         data: [
-          tasks["To Do"].length,
-          tasks["In Progress"].length,
-          tasks.Completed.length,
+          grouped["To Do"].length,
+          grouped["In Progress"].length,
+          grouped.Completed.length,
         ],
         backgroundColor: ["#FF6384", "#FFCE56", "#36A2EB"],
       },
@@ -160,10 +148,10 @@ const UserDashboard = () => {
         <div className="glassmorphism p-4 rounded-xl shadow-lg bg-gradient-to-br from-white/30 to-white/10 backdrop-blur-lg border border-white/20">
           <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.keys(tasks).map((columnKey) => (
+              {Object.keys(grouped).map((columnKey) => (
                 <Column key={columnKey} title={columnKey} id={columnKey} className="w-[280px]">
-                  <SortableContext items={tasks[columnKey].map((task) => task.id)} strategy={verticalListSortingStrategy}>
-                    {tasks[columnKey].map((task) => (
+                  <SortableContext items={grouped[columnKey].map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                    {grouped[columnKey].map((task) => (
                       <SortableItem key={task.id} id={task.id} task={task} />
                     ))}
                   </SortableContext>

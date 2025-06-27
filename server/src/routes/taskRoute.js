@@ -2,19 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
 
-// Get tasks for user
-router.get('/:userId', async (req, res) => {
-  try {
-    const tasks = await Task.find({ assignedTo: req.params.userId });
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch tasks' });
-  }
-});
 
 
 // Get tasks for a specific user
-router.get('/user/:userId', async (req, res) => {
+router.get('/:userId', async (req, res) => {
   try {
     const tasks = await Task.find({ assignedTo: req.params.userId });
     res.json(tasks);
