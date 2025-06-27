@@ -39,7 +39,6 @@ const TaskList = () => {
         
         // Check for existing tasks in localStorage
         const storedTasks = localStorage.getItem('tasks');
-        
         if (storedTasks) {
           // Parse and use stored tasks
           const parsedTasks = JSON.parse(storedTasks);

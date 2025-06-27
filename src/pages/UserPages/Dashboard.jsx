@@ -8,7 +8,11 @@ import "react-toastify/dist/ReactToastify.css";
 import UserSidebar from "./UserSidebar";
 import Column from "./Column";
 import SortableItem from "./SortableItem";
+import { TASK_API_BASE } from "./UserPage";
 import notificationSound from "./notification.mp3";
+
+const NOTES_API_BASE = "http://localhost:5000/api/notes"; // adjust to your backend route
+let debounceTimer = null;
 
 const UserDashboard = () => {
   const [tasks, setTasks] = useState({
@@ -17,36 +21,76 @@ const UserDashboard = () => {
     Completed: [],
   });
 
-  const [notes, setNotes] = useState(localStorage.getItem("notes") || "");
+  const [notes, setNotes] = useState("");
   const audioRef = useRef(new Audio(notificationSound));
 
-  // 🔹 Ensure page starts from top when component loads
   useEffect(() => {
     window.scrollTo(0, 0);
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      fetchTasks(userId);
+      fetchUserNotes(userId);
+    }
   }, []);
 
-  useEffect(() => {
-    const storedTasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    const categorizedTasks = {
-      "To Do": storedTasks.filter((task) => task.progress <= 40),
-      "In Progress": storedTasks.filter((task) => task.progress > 40 && task.progress <= 80),
-      Completed: storedTasks.filter((task) => task.progress > 80),
-    };
-    setTasks(categorizedTasks);
-    checkDeadlines(storedTasks);
-  }, []);
+  const fetchTasks = async (userId) => {
+    try {
+      const res = await fetch(`${TASK_API_BASE}/${userId}`);
+      const allTasks = await res.json();
+
+      const categorized = {
+        "To Do": allTasks.filter((t) => t.progress <= 40),
+        "In Progress": allTasks.filter((t) => t.progress > 40 && t.progress <= 80),
+        Completed: allTasks.filter((t) => t.progress > 80),
+      };
+
+      setTasks(categorized);
+      checkDeadlines(allTasks);
+    } catch (err) {
+      console.error("Failed to fetch tasks", err);
+      toast.error("Could not load tasks.");
+    }
+  };
+
+  const fetchUserNotes = async (userId) => {
+    try {
+      const res = await fetch(`${NOTES_API_BASE}/${userId}`);
+      const data = await res.json();
+      setNotes(data.notes || "");
+    } catch (err) {
+      console.error("Failed to fetch notes", err);
+      toast.error("Could not load notes.");
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem("notes", notes);
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        await fetch(`${NOTES_API_BASE}/${userId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes }),
+        });
+      } catch (err) {
+        console.error("Failed to save notes", err);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
   }, [notes]);
 
-  const checkDeadlines = (tasks) => {
+  const checkDeadlines = (allTasks) => {
     const today = new Date().toISOString().split("T")[0];
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
-    tasks.forEach((task) => {
+    allTasks.forEach((task) => {
       if (task.deadline === today) {
         showNotification(`🚨 Task Due Today: "${task.title}"`, "bg-red-500 text-white");
       } else if (task.deadline === tomorrowStr) {
@@ -69,26 +113,24 @@ const UserDashboard = () => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const sourceColumn = Object.keys(tasks).find((column) =>
-      tasks[column].some((task) => task.id === active.id)
+    const sourceColumn = Object.keys(tasks).find((col) =>
+      tasks[col].some((task) => task.id === active.id)
     );
-    const targetColumn = Object.keys(tasks).find((column) => tasks[column].some((task) => task.id === over.id)) || over.id;
+    const targetColumn = Object.keys(tasks).find((col) =>
+      tasks[col].some((task) => task.id === over.id)
+    ) || over.id;
 
     if (!sourceColumn || !targetColumn || sourceColumn === targetColumn) return;
 
-    setTasks((prevTasks) => {
-      const updatedTasks = { ...prevTasks };
-      const movedTask = updatedTasks[sourceColumn].find((task) => task.id === active.id);
-      updatedTasks[sourceColumn] = updatedTasks[sourceColumn].filter((task) => task.id !== active.id);
-      updatedTasks[targetColumn] = [...(updatedTasks[targetColumn] || []), movedTask];
-
-      return updatedTasks;
+    setTasks((prev) => {
+      const updated = { ...prev };
+      const moved = updated[sourceColumn].find((t) => t.id === active.id);
+      updated[sourceColumn] = updated[sourceColumn].filter((t) => t.id !== active.id);
+      updated[targetColumn] = [...updated[targetColumn], moved];
+      return updated;
     });
-
-    localStorage.setItem("tasks", JSON.stringify([...tasks["To Do"], ...tasks["In Progress"], ...tasks["Completed"]]));
   };
 
-  // Task Analytics Chart Data (Bar Graph)
   const chartData = {
     labels: ["To Do", "In Progress", "Completed"],
     datasets: [
@@ -131,9 +173,8 @@ const UserDashboard = () => {
           </DndContext>
         </div>
 
-        {/* Task Analytics & Notes Section */}
+        {/* Task Analytics & Notes */}
         <div className="mt-10 flex flex-col lg:flex-row items-start gap-6">
-          {/* Task Analytics Chart */}
           <div className="p-6 w-full lg:w-1/2 bg-white shadow-lg rounded-xl border border-gray-300">
             <h2 className="text-3xl font-extrabold text-gray-900 mb-4 text-center tracking-wide uppercase">
               📊 Task Analytics
@@ -141,11 +182,8 @@ const UserDashboard = () => {
             <Bar data={chartData} />
           </div>
 
-          {/* Notes */}
           <div className="p-6 w-full lg:w-[590px] bg-green-900 text-white rounded-xl border-[12px] border-[#8B4501] shadow-lg flex flex-col">
             <h2 className="text-2xl font-bold text-yellow-400 mb-2 text-center">📌 Notes</h2>
-
-            {/* Notes Input Field - Enlarged to match Task Analytics */}
             <textarea
               className="flex-1 bg-transparent border-none outline-none text-white text-lg p-7"
               placeholder="Write your notes here..."
