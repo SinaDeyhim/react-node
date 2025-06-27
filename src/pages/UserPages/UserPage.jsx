@@ -26,8 +26,6 @@ const UserPage = () => {
   useEffect(() => {
     if (user?.id) {
       fetchTasks();
-    } else {
-      toast.error("User not found. Please log in again.");
     }
   }, [user?.id]);
 
@@ -107,21 +105,21 @@ const UserPage = () => {
         <ToastContainer position="top-right" autoClose={3000} />
 
         {/* Search & Filter */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 max-w-4xl mx-auto">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <input
             type="text"
             placeholder="🔍 Search by title"
-            className="w-full md:w-1/2 p-3 border rounded-lg"
+            className="w-full md:w-1/2 p-3 rounded-lg h-[48px]"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
-        <Dropdown
-          value={filter}
-          options={FILTER_OPTIONS}
-          onChange={setFilter}
-          className="w-full md:w-1/3"
-         />
+          <Dropdown
+            value={filter}
+            options={FILTER_OPTIONS}
+            onChange={setFilter}
+            className="w-full md:w-1/3 h-[48px] rounded-lg" 
+          />
         </div>
 
         {/* Create Task */}

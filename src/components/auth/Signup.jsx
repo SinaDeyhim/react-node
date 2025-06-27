@@ -202,7 +202,8 @@ const Signup = () => {
       
       // Create log entry for admin tracking
       const logData = {
-        userId: newUser.userId,
+        id: `${Date.now()}`,
+        userId: `${Date.now()}`,
         username: newUser.email,
         fullName: newUser.fullName,
         role: newUser.role,

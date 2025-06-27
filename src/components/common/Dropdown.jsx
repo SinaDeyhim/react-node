@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-const Dropdown = ({ value, options, onChange, className = "" }) => {
+const Dropdown = ({ id, value, options, onChange, className = "" }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   // Close dropdown when clicking outside
@@ -15,11 +15,11 @@ const Dropdown = ({ value, options, onChange, className = "" }) => {
   }, []);
 
   return (
-    <div className={`relative w-full ${className}`} ref={ref}>
-      <button
+    <div id={id} className={`relative w-full bg-white ${className}`} ref={ref}>
+        <button
         onClick={() => setOpen(!open)}
-        className="w-full bg-white text-gray-800 border border-gray-300 rounded-lg px-4 py-2 text-left flex justify-between items-center shadow-sm hover:border-gray-400 focus:outline-none"
-      >
+        className="w-full text-gray-800 rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-gray-400 focus:outline-none"
+        >
         <span className="text-gray-800">{value}</span>
         <svg
           className={`w-4 h-4 ml-2 transform transition-transform ${open ? "rotate-180" : ""}`}

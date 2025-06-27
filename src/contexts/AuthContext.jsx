@@ -89,9 +89,10 @@ const AuthProvider = ({ children }) => {
    * @returns {Promise<Object>} User data
    */
   const login = async (email, password) => {
+    const userId = localStorage.getItem("userId");
     // In a real app, this would make an API call
     // For this demo, we just update the state
-    setUser({ email });
+    setUser({ email, id: userId });
     return { email };
   };
 

@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 const TaskContext = createContext();
 const API_BASE = "http://localhost:5000/api/tasks";
 
-export const TaskProvider = ({ userId, children }) => {
+export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,12 +65,16 @@ export const TaskProvider = ({ userId, children }) => {
     }
   };
 
+  const clearTasks = () =>{
+    setTasks([])
+  }
+
   useEffect(() => {
     fetchTasks();
-  }, [userId]);
+  }, [user?.id]);
 
   return (
-    <TaskContext.Provider value={{ tasks, loading, error, fetchTasks, updateTask, deleteTask, addTask }}>
+    <TaskContext.Provider value={{ tasks, loading, error, fetchTasks, updateTask, deleteTask, addTask, clearTasks }}>
       {children}
     </TaskContext.Provider>
   );

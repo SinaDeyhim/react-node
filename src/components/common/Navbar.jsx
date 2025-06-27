@@ -3,9 +3,11 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { FaUserCircle, FaTasks } from "react-icons/fa";
 import TaskList from "../tasks/TaskList";
+import { useTasks } from "../../contexts/TasksContext";
 
 const Navbar = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const {clearTasks} = useTasks()
   const navigate = useNavigate();
   const location = useLocation();
   const hideProfileRoutes = ["/", "/login", "/signup"];
@@ -51,17 +53,35 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
+      logLogout(user);
+      clearTasks();
       await logout();
       const isAdminPortal = location.pathname.startsWith("/admin");
 
       // Remove the correct profile from storage
       localStorage.removeItem(isAdminPortal ? "adminProfile" : "userProfile");
-
       navigate("/");
     } catch (err) {
       console.error("Logout failed:", err);
     }
   };
+
+  const logLogout = (user) => {
+  const storedLogs = JSON.parse(localStorage.getItem("userLogs")) || [];
+
+  const logoutLog = {
+    id: `${Date.now()}`,
+    action: "logout",
+    logoutTime: new Date().toISOString(),
+    username:localStorage.getItem("email"),
+    role: localStorage.getItem("userRole"),
+    tokenName: localStorage.getItem("token"),
+    ipAddress:  "127.0.0.1",
+    userId: user.id
+  };
+
+  localStorage.setItem("userLogs", JSON.stringify([...storedLogs, logoutLog]));
+};
 
   const handleLogoClick = (e) => {
     e.preventDefault();

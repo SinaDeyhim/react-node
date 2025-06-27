@@ -18,6 +18,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FaTrash, FaSpinner, FaExclamationTriangle, FaUserShield, FaSort, FaFilter } from 'react-icons/fa';
+import Dropdown from '../../components/common/Dropdown';
 
 const UserLogPage = () => {
   // State management with proper initialization
@@ -271,41 +272,44 @@ const UserLogPage = () => {
         User Activity Logs
       </h2>
       
-      <div className="mb-6 space-y-4 md:space-y-0 md:flex md:space-x-4">
+      <div className="w-full mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         {/* Search input */}
-        <div className="md:flex-1">
+        <div className="w-full sm:max-w-lg">
           <label htmlFor="log-search" className="block text-sm font-medium text-gray-700 mb-1">
             Search Logs
           </label>
           <input
-            id="log-search"
             type="text"
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            placeholder="Search by username, user ID, or IP"
+            placeholder="🔍 Search by username, user ID, or IP"
+            className="w-full p-3 rounded-lg h-[48px] border border-gray-300 focus:ring-blue-500 focus:border-blue-500"
             value={filters.search}
             onChange={(e) => handleFilterChange('search', e.target.value)}
             aria-label="Search logs"
           />
         </div>
-        
+
         {/* Role filter */}
-        <div className="md:w-48">
+        <div className="w-full sm:w-48 sm:ml-auto">
           <label htmlFor="role-filter" className="block text-sm font-medium text-gray-700 mb-1">
             Filter by Role
           </label>
-          <select
+          <Dropdown
             id="role-filter"
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            value={filters.role}
-            onChange={(e) => handleFilterChange('role', e.target.value)}
-            aria-label="Filter logs by role"
-          >
-            <option value="all">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-          </select>
+            value={
+              filters.role === 'all'
+                ? 'All Roles'
+                : filters.role.charAt(0).toUpperCase() + filters.role.slice(1)
+            }
+            options={['All Roles', 'Admin', 'User']}
+            onChange={(val) => {
+              const roleValue = val === 'All Roles' ? 'all' : val.toLowerCase();
+              handleFilterChange('role', roleValue);
+            }}
+            className="w-full h-[48px] border border-gray-300 rounded-lg"
+          />
         </div>
       </div>
+
       
       {/* Results count */}
       <div className="mb-4 text-sm text-gray-500">
